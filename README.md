@@ -1,6 +1,6 @@
 # Settle on Base — DApp Frontend
 
-[![Settle on Base Preview](./public/preview.png)](https://settleonbase.xyz)
+[![Settle on Base Preview](./public/preview1.png)](https://settleonbase.xyz)
 
 > The official frontend for **Settle on Base (SOB)** —  
 > a live minting dashboard built on **Base Mainnet**, using **EIP-3009** USDC→SOB transfer authorization.  
