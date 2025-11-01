@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Badge } from "./components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import ConnectWallet from './components/ui/ConnectWallet'
 import { initEIP6963Discovery } from "./lib/eip6963";
+
+
+import { getInjectedProvider, EIP1193Provider } from "./lib/utils";
+import sellte_abi from './lib/sellte-abi.json'
 import {
   CheckCircle2,
   Hourglass,
@@ -50,6 +54,8 @@ type StepProps = {
 
 type ProtocolState = "AVAILABLE" | "RATE_LIMIT" | "WINDOW_CLOSED";
 
+const short = (s: string, head = 6, tail = 4) =>
+  s?.length > head + tail + 2 ? `${s.slice(0, head)}…${s.slice(-tail)}` : s;
 
 function pickApprovedProvider(): any | null {
 	const w = window as any;
@@ -86,6 +92,52 @@ const Stat: React.FC<StatProps> = ({ label, value, sub }) => (
     )}
   </div>
 );
+
+
+type presale_data = {
+	tx: string
+	address: string
+	usdc: string
+	amount: string
+}
+const data: presale_data[] = [
+	{
+		tx: '0x323ba62d4395d3aa2238f9d1f4f11fe8c082fc24e3669ec4bad2eb8562392de8',
+		address: '0x8364cb7270C203628E0659dA96355a7a92CFfecf',
+		usdc: '10.00',
+		amount: '70000.00'
+	},
+	{
+		tx: '0x8b7ab606d3e9b518ecb13753609e73a35a985a6d515e229e2d1acfeeddb3aac2',
+		address: '0x8364cb7270C203628E0659dA96355a7a92CFfecf',
+		usdc: '1.00',
+		amount: '7000.00'
+	},
+	{
+		tx: '0xca0934336141a4192583ee17e225a91847f7d750ec27dd55dd0f1806937eeccc',
+		address: '0x8364cb7270C203628E0659dA96355a7a92CFfecf',
+		usdc: '1.00',
+		amount: '7000.00'
+	},
+	{
+		tx: '0xf24e570e8190f65b128e70b08688ca83c65234ec20d4fcf453b365651129cb4b',
+		address: '0x8364cb7270C203628E0659dA96355a7a92CFfecf',
+		usdc: '1.00',
+		amount: '7000.00'
+	},
+	{
+		tx: '0x7c6c03bc7bf19b5d2183dc97c119015a85b7b53a60c3cc4b49a2fae05ec6746e',
+		address: '0x8364cb7270C203628E0659dA96355a7a92CFfecf',
+		usdc: '1.00',
+		amount: '7000.00'
+	},
+	{
+		tx: '0x77da6176000d5e20170c235a67192af22d7ff54cfac4c1f54af60ce7c0511eb2',
+		address: '0x8364cb7270C203628E0659dA96355a7a92CFfecf',
+		usdc: '1.00',
+		amount: '7000.00'
+	}
+]
 
 const Feature: React.FC<FeatureProps> = ({ icon: Icon, title, children }) => (
   <Card className="term-card animate-rise">
@@ -131,11 +183,16 @@ function protocolBadgeText(state: ProtocolState) {
 
 // ===== EIP-3009 (USDC-like) defaults =====
 const EIP3009 = {
-  tokenAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",	//		USDC address
-  tokenName: "USD Coin",   // 若你的实现不同，改成对应的 EIP-712 name
-  tokenVersion: "2",       // 若你的实现不同，改成对应的版本
-  decimals: 6,             // USDC 常见为 6
-  toAddress: "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+	tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",	//		USDC address
+	tokenAddress_testnet: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",	//		USDC address
+	SETTLE_SC:'',
+	SETTLE_SC_testnet: '0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8',
+	tokenName: "USD Coin",   
+	tokenVersion: "2",       
+	decimals: 6,             
+	AUTHORIZED_RECEIVER: "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+	mainnet_chainID: 8453,
+	testnet_chainID: 84532
 }
 
 // Minimal ABI for the balanceOf function
@@ -144,11 +201,37 @@ const erc20Abi = [
   "function decimals() view returns (uint8)"
 ];
 
+const base_testnetProvide = new ethers.JsonRpcProvider('https://chain-proxy.wallet.coinbase.com?targetName=base-sepolia')
+const USDC_SC_testnet = new ethers.Contract(EIP3009.tokenAddress_testnet, erc20Abi, base_testnetProvide)
+const SETTLE_SC_testnet = new ethers.Contract(EIP3009.SETTLE_SC_testnet, sellte_abi, base_testnetProvide)
+
 
 const baseProvider = new ethers.JsonRpcProvider('https://mainnet.base.org')
-const USDC_SC = new ethers.Contract(EIP3009.tokenAddress, erc20Abi, baseProvider)
-const SETTLE_SC = new ethers.Contract(EIP3009.toAddress, erc20Abi, baseProvider)
 
+
+const USDC_SC = new ethers.Contract(EIP3009.tokenAddress, erc20Abi, baseProvider)
+const SETTLE_SC = new ethers.Contract(EIP3009.AUTHORIZED_RECEIVER, erc20Abi, baseProvider)
+
+type ISettle_status = {
+	isPending: boolean
+	pendingMintsCountTotal: number
+	pendingAmount: string
+	totalUSDC: string
+}
+const getStatus = async (): Promise<ISettle_status|null> => {
+	try {
+		const status = await SETTLE_SC_testnet.getPendingStatus()
+		const ret: ISettle_status = {
+			isPending: true,
+			pendingMintsCountTotal: status.pendingMintsCountTotal,
+			pendingAmount: ethers.formatEther(status.pendingAmount),
+			totalUSDC: parseFloat(ethers.formatUnits(status.totalUSDC, 6)).toFixed(2)
+		}
+		return ret
+	} catch (ex) {
+		return null
+	}
+}
 
 export default function SettleLanding() {
 
@@ -167,118 +250,230 @@ export default function SettleLanding() {
 	const [chainId, setChainId] = useState<number | null>(null);
 	const [usdcBalance, setUsdcBalance] = useState<string>("-");
 	const [sobBalance, setSobBalance] = useState<string>("-");
+	const [isPedding, setIsPedding] = useState(true);
+	const [totalUSDC, setTotalUSDC] = useState('0');
+	const [preMintCount, setPreMintCount] = useState(0);
+	const [pendingAmount, setPendingAmount] = useState('0');
+	const [liveData, setLiveData] = useState(data)
+	const [currectBlock, setCurrectBlock] = useState(0)
+	const [flashKey, setFlashKey] = useState<string | null>(null);
+	const [walletProvider, setWalletProvider] = useState<EIP1193Provider|null>(null)
 
-
-	const signEIP3009Authorization = async () => {
-		const eth = (window as any).ethereum;
-		if (!eth) {
-			alert("No EIP-1193 provider. Please open in a wallet or DApp browser.");
-			return;
+	const fetchPresaleStatus = async () => {
+		const status = await getStatus()
+		if (status) {
+			setIsPedding(status.isPending)
+			setTotalUSDC(status.totalUSDC)
+			setPreMintCount(status.pendingMintsCountTotal)
+			setPendingAmount(status.pendingAmount)
 		}
+	}
 
-		// 获取账户 & chainId
-		const [from] = await eth.request({ method: "eth_requestAccounts" });
-		const chainHex: string = await eth.request({ method: "eth_chainId" });
-		const chainId = parseInt(chainHex, 16);
+	function generateNonce(): string {
+		return ethers.hexlify(ethers.randomBytes(32))
+	}
 
-		// 解析 amount（按 6 位小数）
-		const amt = amountInput.trim();
-		if (!amt || isNaN(+amt) || +amt <= 0) {
-			alert("请输入正确的 amount（金額）");
-			return;
-		}
-		// 转换成人为整数最小单位（例如 USDC 6 位小数）
-		const parts = amt.split(".");
-		const whole = BigInt(parts[0] || "0");
-		const frac = BigInt((parts[1] || "").padEnd(EIP3009.decimals, "0").slice(0, EIP3009.decimals) || "0");
-		const value = (whole * BigInt(10 ** EIP3009.decimals) + frac).toString();
-
-		// 时间窗
-		const now = Math.floor(Date.now() / 1000);
-		const validAfter = "0";                 // 立即生效
-		const validBefore = String(now + 15 * 60); // 15 分钟有效
-
-		// 32字节随机 nonce
-		const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
-		const nonce = "0x" + Array.from(nonceBytes).map(b => b.toString(16).padStart(2, "0")).join("");
-
-		// EIP-712 typed data（EIP-3009 / Authorization）
-		const domain = {
-			name: EIP3009.tokenName,
-			version: EIP3009.tokenVersion,
-			chainId,
-			verifyingContract: EIP3009.tokenAddress,
-		} as const;
-
-		const types = {
-			EIP712Domain: [
-			{ name: "name", type: "string" },
-			{ name: "version", type: "string" },
-			{ name: "chainId", type: "uint256" },
-			{ name: "verifyingContract", type: "address" },
-			],
-			Authorization: [
+	const TRANSFER_WITH_AUTHORIZATION_TYPES = {
+		TransferWithAuthorization: [
 			{ name: "from", type: "address" },
 			{ name: "to", type: "address" },
-			{ name: "value", type: "uint256" },
+			{ name: "value", type: "uint256" },      // ✅ 是 uint256，不是 string
 			{ name: "validAfter", type: "uint256" },
 			{ name: "validBefore", type: "uint256" },
-			{ name: "nonce", type: "bytes32" },
-			],
-		} as const;
+			{ name: "nonce", type: "bytes32" },      // ✅ 是 bytes32，不是 string
+		],
+	}
 
-		const message = {
-			from,
-			to: EIP3009.toAddress,
-			value,
-			validAfter,
-			validBefore,
-			nonce,
-		} as const;
-
-		// 部分钱包需要 JSON 字符串
-		const typedData = JSON.stringify({
-			domain,
-			types,
-			message,
-			primaryType: "Authorization",
-		});
-
-		// 发起签名（EIP-1193）
-		let sig: string;
-		try {
-			sig = await eth.request({
-			method: "eth_signTypedData_v4",
-			params: [from, typedData],
-			});
-		} catch (e: any) {
-			alert(`签名被拒绝或失败：${e?.message || e}`);
-			return;
+	// ============================================
+	// 1. 定义 EIP-712 Domain
+	// ============================================
+	const getDomain = (chainId: number) => {
+		const ret = chainId === 8453 
+		? {
+			name: "USD Coin",  // USDC 的名称
+			version: "2",      // USDC 版本
+			chainId: chainId,  // Base chainId = 8453
+			verifyingContract: EIP3009.tokenAddress, // USDC 合约地址
 		}
-
-		// 拆分 v r s
-		const sigClean = sig.startsWith("0x") ? sig.slice(2) : sig;
-		const r = "0x" + sigClean.slice(0, 64);
-		const s = "0x" + sigClean.slice(64, 128);
-		let v = parseInt(sigClean.slice(128, 130), 16);
-		if (v < 27) v += 27; // 规范化
-
-		const payload = {
-			token: EIP3009.tokenAddress,
-			domain,
-			message,
-			signature: { v, r, s },
-			call: {
-			// 这是直接喂给合约 transferWithAuthorization(...) 的参数包
-			function: "transferWithAuthorization",
-				args: [from, EIP3009.toAddress, value, validAfter, validBefore, nonce, v, r, s],
-			},
-		};
-
-		setAuthJson(JSON.stringify(payload, null, 2));
+		: {
+			name: "USD Coin",  // testnet
+			version: "2",      
+			chainId: chainId,  
+			verifyingContract: EIP3009.tokenAddress_testnet, // USDC 合约地址
+		}
+		return ret
+		
 	}
 
 
+	const signEIP3009Authorization = async () => {
+		
+		if (!walletProvider) {
+			console.error("❌ Wallet provider not available")
+			return
+		}
+		const provider = new ethers.BrowserProvider(walletProvider)
+		const signer = await provider.getSigner()
+		const signerAddress = await signer.getAddress();
+		if (signerAddress.toLowerCase() !== account.toLowerCase()) {
+			return console.warn("Signer 与 account 不一致");
+		}
+
+		const AUTHORIZED_RECEIVER = '0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1'
+
+		// ============================================
+		// 参数配置
+		// ============================================
+		const usdcAmount = ethers.parseUnits(amountInput || "1", 6) // BigInt
+		const now = Math.floor(Date.now() / 1000)
+		const validAfter = now
+		const validBefore = now + 3600 // 1小时有效期
+		
+		// ✅ 生成 bytes32 格式的 nonce
+		const nonce = generateNonce()
+		
+		console.log("📋 Message parameters:")
+		console.log({
+			account,
+			to: AUTHORIZED_RECEIVER,
+			value: usdcAmount.toString(),
+			validAfter,
+			validBefore,
+			nonce,
+		})
+
+		// ============================================
+		// ✅ 构造 EIP-712 typedData
+		// ============================================
+		const typedData = {
+			types: TRANSFER_WITH_AUTHORIZATION_TYPES,
+			primaryType: "TransferWithAuthorization",  // ✅ 必须与 types 的 key 匹配
+			domain: getDomain(EIP3009.testnet_chainID),
+			message: {
+				from: account,
+				to: AUTHORIZED_RECEIVER,
+				value: usdcAmount.toString(),  // ✅ 转为 string（ethers.js 会处理类型）
+				validAfter: validAfter.toString(),  // ✅ uint256 -> string
+				validBefore: validBefore.toString(),  // ✅ uint256 -> string
+				nonce: nonce,  // ✅ bytes32 格式的 hex 字符串
+			},
+		}
+
+		console.log("📋 EIP-712 TypedData:")
+		console.log(JSON.stringify(typedData, null, 2))
+
+		// ============================================
+		// 调用 eth_signTypedData_v4
+		// ============================================
+		let sig: string
+		// 3. 使用 ethers 签名（自动调用 eth_signTypedData_v4）
+
+		try {
+			sig = await signer.signTypedData(typedData.domain, typedData.types, typedData.message)
+			console.log("ethers 签名成功:", sig);
+		} catch (err: any) {
+			console.error("签名失败:", err.message);
+			return;
+		}
+
+		// ============================================
+		// 构造请求体，发往后端
+		// ============================================
+		const body402 = {
+			EIP712: typedData,
+			sig: sig,
+		}
+
+		console.log("📤 Request body being sent:")
+		console.log(JSON.stringify(body402, null, 2))
+
+		try {
+			const response = await fetch("https://api.settleonbase.xyz/api/mintTestnet", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(body402),
+			})
+
+			console.log(`📍 HTTP Status: ${response.status}`)
+			
+			const contentType = response.headers.get('content-type')
+			let result: any
+			
+			if (contentType?.includes('application/json')) {
+				result = await response.json()
+			} else {
+				const text = await response.text()
+				console.error("❌ Non-JSON response:", text)
+				return
+			}
+
+			console.log("✅ Server response:", result)
+
+			if (response.ok && result.success) {
+				console.log("✅ Signature verified successfully")
+				console.log("✅ Signature components:", result.signatureComponents)
+				setAuthJson(JSON.stringify(result, null, 2))
+				
+			} else if (result.error) {
+				console.error("❌ Server error:", result.error)
+				setAuthJson(JSON.stringify({ error: result.error }, null, 2))
+			}
+		} catch (error) {
+			console.error("❌ Network request failed:", error)
+			setAuthJson(JSON.stringify({ 
+				error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+			}, null, 2))
+		}
+	}
+
+	//	https://api.settleonbase.xyz/api/mint-testnet
+	useEffect(() => {
+		// --- 单例监听器，避免 StrictMode / HMR 反复注册 ---
+		const KEY = "__SETTLE_LIVE_HANDLER__";
+		// 如果已有旧的，先解绑
+		if ((window as any)[KEY]) {
+			window.removeEventListener("settle:live", (window as any)[KEY]);
+		}
+
+		const handler = (e: any) => {
+			const item = e?.detail as presale_data | undefined;
+			if (!item) return;
+
+			  const __kid =
+				(item as any).__kid ??
+				(item.tx && item.tx.length > 0
+				? item.tx
+				: (crypto as any)?.randomUUID?.() || `k-${Date.now()}-${Math.random()}`);
+
+			setLiveData(prev => {
+				const key = item.tx && item.tx.length > 0 ? item.tx : __kid;
+				if (prev.some(d => (d.tx && d.tx.length > 0 ? d.tx : (d as any).__kid) === key)) {
+				return prev; // 去重
+				}
+				return [{ ...(item as any), __kid }, ...prev].slice(0, 50);
+			});
+			const keyForFlash = item.tx && item.tx.length > 0 ? item.tx : __kid;
+			setFlashKey(prev => (prev === keyForFlash ? `${keyForFlash}#` : keyForFlash));
+		};
+		
+		window.addEventListener("settle:live", handler as any);
+		(window as any)[KEY] = handler;
+
+		// 推送入口（同名覆写即可，保持单例）
+		(window as any).pushLiveMint = (item: presale_data) =>
+			window.dispatchEvent(new CustomEvent("settle:live", { detail: item }));
+
+		return () => {
+			// 保持页面卸载时清理
+			window.removeEventListener("settle:live", handler as any);
+			if ((window as any)[KEY] === handler) {
+			delete (window as any)[KEY];
+		}
+		delete (window as any).pushLiveMint;
+		};
+	}, []);
 	
   useEffect(() => {
     let cancelled = false;
@@ -298,11 +493,11 @@ export default function SettleLanding() {
         // Keep defaults; optionally surface a subtle hint later
       }
     }
-
-
+	
 
 	
     fetchStatus();
+	listening()
 	initEIP6963Discovery();
 	providerRef.current = pickApprovedProvider()
 
@@ -325,17 +520,45 @@ export default function SettleLanding() {
 	}
 
 	const SOB_TOKEN = {
-		address: EIP3009.toAddress,         
+		address: EIP3009.SETTLE_SC_testnet,         
 		symbol: "SETTLE",
 		decimals: 18,
 	};
 
-	const refreshBalances = async () => {
+
+
+	const refreshBalances = async (block: number) => {
+
+		if (block <= currectBlock) {
+			return
+		}
+		setCurrectBlock(block)
+
+		
+		//@ts-ignore
+		if (Math.random() * 10 < 2) {
+			const usdc = (Math.random()*10).toFixed(2)
+			const _data: presale_data = {
+				tx: '0x8f7944044abb7d3725e79fd92efad190d8ac60f1cd7f4f36b41e6e0f50ec67b'+block,
+				usdc,
+				address: '0x8364cb7270C203628E0659dA96355a7a92CFfecf',
+				amount: (parseFloat(usdc) * 7000).toFixed(2)
+			}
+			//@ts-ignore
+			window.pushLiveMint(_data)
+		}
+
+		
+
+		
 		try {
-			if (!account ) return;
+			if (!account ) {
+				
+				return;
+			}
 			// USDC
 			const [usdcRaw, sobRaw] = await Promise.all([
-				erc20BalanceOf(USDC_SC,  account, EIP3009.decimals),
+				erc20BalanceOf(USDC_SC_testnet,  account, EIP3009.decimals),
 				erc20BalanceOf(SETTLE_SC, account, SOB_TOKEN.decimals),
 			])
 			
@@ -346,6 +569,7 @@ export default function SettleLanding() {
 		} catch {
 			// ignore
 		}
+		
 	}
 
 	// Detect wallet connection & listen to changes
@@ -375,6 +599,7 @@ export default function SettleLanding() {
 			setAccount(e?.detail?.account || "");
 			const chainID = typeof e?.detail?.chainId === "number" ? e.detail.chainId : null
 			setChainId(chainID);
+			setWalletProvider(e?.detail?.provider)
 			if (chainID !== 8453 ) {
 				try {
 					await eth.request({
@@ -414,6 +639,13 @@ export default function SettleLanding() {
 		};
 	}, []);
 
+	const listening = async () => {
+		baseProvider.on('block', block => {
+			fetchPresaleStatus()
+			refreshBalances(block)
+		})
+	}
+
 	
 	// Listen new block headers to refresh balances dynamically
 	useEffect(() => {
@@ -423,35 +655,6 @@ export default function SettleLanding() {
 
 		let unsub: (() => void) | undefined;
 		let subId: string | null = null;
-
-		(async () => {
-			await refreshBalances(); // initial fetch
-			try {
-					// 尝试使用 websocket/newHeads 订阅
-				subId = await eth.request({
-					method: "eth_subscribe",
-					params: ["newHeads"],
-				});
-				// MetaMask、Coinbase、OKX DApp Browser 均支持此标准
-				eth.on?.("message", (msg: any) => {
-					if (msg?.type === "eth_subscription" && msg?.data?.subscription === subId) {
-					refreshBalances();
-				}
-			});
-
-
-			unsub = async () => {
-				try {
-					await eth.request({ method: "eth_unsubscribe", params: [subId!] });
-				} catch {}
-			};
-			
-			} catch {
-				// 如果 provider 不支持订阅，则退回定时轮询
-				const id = setInterval(refreshBalances, 15000);
-				unsub = () => clearInterval(id);
-			}
-		})();
 
 		return () => {
 			if (unsub) unsub();
@@ -789,7 +992,7 @@ export default function SettleLanding() {
               <span className="text-[var(--crt-accent)]">x402</span> is a settlement layer that lets any wallet finalize a real transaction on Base with 0 gas paid by the user — with auto‑retry and a guaranteed outcome.
               <br />
               <br />
-              <span className="text-[var(--crt-accent)]">$SETTLE</span> is the first public live-fire run of that settlement layer. Connect wallet, join the presale in USDC, and feel it yourself: gasless submit, automatic retry, and a shareable on-chain receipt at <span className="text-[var(--crt-accent)]">x402.scan</span>.
+              <span className="text-[var(--crt-accent)]">$SETTLE</span> is the first public live-fire run of that settlement layer. Connect wallet, join the Mint/Early Access in USDC, and feel it yourself: gasless submit, automatic retry, and a shareable on-chain receipt at <span className="text-[var(--crt-accent)]">x402.scan</span>.
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -868,7 +1071,7 @@ export default function SettleLanding() {
 							<div className="term-header">
 								<span>WALLET.DASHBOARD</span>
 								<span className="text-[var(--crt-dim)]">
-									{chainId ? `CHAIN_ID=${chainId}` : "READONLY"}
+									{chainId ? `BASE Mainnet` : "READONLY"}
 								</span>
 							</div>
 						<div className="p-3">
@@ -893,17 +1096,71 @@ export default function SettleLanding() {
 					</div>
 					)}
 					
-					<div className="term-card hero-safe p-3 flex items-center justify-center h-64 md:h-80 text-[10px] text-[var(--crt-dim)] tracking-wide text-center">
-					{/* placeholder hero */}
-					<div className="flex flex-col items-center gap-2">
-						<div className="text-[var(--crt-accent)] text-xs md:text-sm font-semibold tracking-widest">
-						[ LIVE MINT FEED ]
+					<div className="term-card hero-safe p-0">
+						<div className="term-header">
+							<span>[ LIVE MINT FEED ]</span>
+							<span className="text-[var(--crt-dim)]">{liveData.length} events</span>
 						</div>
-						<div className="text-[rgb(var(--crt-text-rgb)_/_0.8)] leading-relaxed max-w-[16rem]">
-						Latest $SETTLE mints / receipts / real settlement traces (x402.scan)
+
+						<div className="p-2 h-64 md:h-80 overflow-auto will-change-transform will-change-opacity">
+							{/* 使用 layout + AnimatePresence：插入到顶部时旧行下移，新行淡入 */}
+							<motion.ul
+								layout="position"
+								initial={false}
+								transition={{
+									layout: { duration: 0.1, ease: [0.16, 1, 0.3, 1] }
+								}}
+							>
+							
+								{liveData.map((row, i) => {
+									const rowKey = row.tx && row.tx.length > 0 ? row.tx : (row as any).__kid;
+									const isFlash = rowKey === flashKey;
+									return (
+								<motion.li
+										key={rowKey}
+										layout="position"
+										// 只有“刚插入的那一行”做 0.5s 的明暗闪耀；其它行不动透明度/亮度
+										animate={
+											isFlash
+												? { filter: ["brightness(2)", "brightness(0.8)", "brightness(1)"] }
+												: { filter: "brightness(1)" }
+										}
+										transition={{
+											// 位置下移：旧行只做 0.1s 位移动画
+											layout: { duration: 0.1, ease: [0.16, 1, 0.3, 1] },
+												// 闪耀：仅新行触发，0.5s，总时长内前 0.01s 高亮（0.5 * 0.02）
+											duration: isFlash ? 0.5 : 0,
+											times: isFlash ? [0, 0.02, 1] : undefined,
+												ease: [0.16, 1, 0.3, 1],
+										}}
+									className="grid grid-cols-[1fr_auto] items-center gap-2 py-2 px-2 border-b border-[rgba(49,255,122,.15)] text-[10px] md:text-xs"
+								>
+									<div className="min-w-0">
+									<div className="flex flex-wrap items-center gap-2">
+										<span className="text-[var(--crt-accent)] font-semibold">
+										+{row.amount} SETTLE
+										</span>
+										<span className="text-[var(--crt-dim)]">/ {row.usdc} USDC</span>
+									</div>
+									<div className="text-[rgb(var(--crt-text-rgb)_/_0.8)] truncate">
+										{short(row.address)} · {short(row.tx, 10, 6)}
+									</div>
+									</div>
+
+									<a
+										className="justify-self-end text-[var(--crt-accent)] hover:underline"
+										href={`https://sepolia.basescan.org/tx/${row.tx}`}
+										target="_blank"
+										rel="noreferrer"
+										title="View on x402.scan"
+									>
+									VIEW
+									</a>
+								</motion.li>
+								)})}
+							</motion.ul>
 						</div>
-					</div>
-					</div>
+						</div>
 
 					<Card className="term-card animate-rise">
 						<div className="term-header">
@@ -984,13 +1241,13 @@ export default function SettleLanding() {
               <div>
                 <div className="text-[var(--crt-accent)] font-semibold text-xs mb-1">2. Launches keep breaking</div>
                 <p>
-                  Teams try to sell tokens / access / presale, but end up live-teaching “buy ETH for gas, change network, screenshot your txhash.” Conversion dies.
+                  Teams try to sell tokens / access / Mint / Early Access, but end up live-teaching “buy ETH for gas, change network, screenshot your txhash.” Conversion dies.
                 </p>
               </div>
               <div>
                 <div className="text-[var(--crt-accent)] font-semibold text-xs mb-1">3. x402 = the settlement layer</div>
                 <p>
-                  We drop a settlement layer on Base: we front gas, auto‑retry, and issue a standard receipt. Users can one-click into $SETTLE while experiencing the actual infra. The $SETTLE presale <em>is</em> the public demonstration of that capability.
+                  We drop a settlement layer on Base: we front gas, auto‑retry, and issue a standard receipt. Users can one-click into $SETTLE while experiencing the actual infra. The $SETTLE Mint / Early Access <em>is</em> the public demonstration of that capability.
                 </p>
               </div>
             </CardContent>
@@ -1001,14 +1258,14 @@ export default function SettleLanding() {
         <section className="max-w-6xl mx-auto px-4 py-10">
           <Card className="term-card animate-rise">
             <div className="term-header">
-              <span>How to join (public presale)</span>
+              <span>How to join (Mint / Early Access)</span>
               <span className="text-[var(--crt-dim)]">NO GAS NEEDED</span>
             </div>
             <CardContent className="p-4 grid md:grid-cols-3 gap-6">
               <Step
                 n={1}
                 title="Pick a tier"
-                body="Choose 1U / 10U / 100U — public presale, no whitelist."
+                body="Choose 1U / 10U / 100U — Mint / Early Access, no whitelist."
               />
               <Step
                 n={2}
@@ -1104,7 +1361,7 @@ export default function SettleLanding() {
 			<div className="text-[10px] md:text-xs text-[rgb(var(--crt-text-rgb)_/_0.8)] leading-relaxed">
 				使用已连接的钱包签发 <span className="text-[var(--crt-accent)] font-semibold">transferWithAuthorization</span> 授权。
 				<br />
-				to = <span className="text-[var(--crt-accent)]">{EIP3009.toAddress}</span>, token = <span className="text-[var(--crt-accent)]">{EIP3009.tokenAddress}</span>
+				to = <span className="text-[var(--crt-accent)]">{EIP3009.AUTHORIZED_RECEIVER}</span>, token = <span className="text-[var(--crt-accent)]">{EIP3009.tokenAddress}</span>
 			</div>
 
 			<div className="flex flex-wrap items-center gap-3">
@@ -1133,7 +1390,7 @@ export default function SettleLanding() {
 
 			{authJson && (
 				<pre className="mt-3 p-3 text-[10px] md:text-xs bg-[rgba(0,0,0,.4)] border border-[var(--crt-border)] rounded-[4px] overflow-x-auto">
-		{authJson}
+					{authJson}
 				</pre>
 			)}
 
@@ -1271,7 +1528,7 @@ export default function SettleLanding() {
           <Card className="term-card animate-rise">
             <div className="term-header">
               <span>MINT.$SETTLE</span>
-              <span className="text-[var(--crt-dim)]">USDC-&gt;$SETTLE PRESALE</span>
+              <span className="text-[var(--crt-dim)]">USDC-&gt;$SETTLE Mint / Early Access</span>
             </div>
             <CardContent className="p-4">
               <div className="grid md:grid-cols-3 gap-6">
@@ -1288,7 +1545,7 @@ export default function SettleLanding() {
                       <div className="text-[var(--crt-accent)] font-semibold text-xs">{p.t}</div>
                       <div className="text-xl font-semibold text-[var(--crt-accent)] drop-shadow-[0_0_6px_var(--crt-accent)]">{p.u} USDC</div>
                       <div className="text-[10px] text-[var(--crt-dim)] leading-relaxed mt-1">
-                        $SETTLE presale · Gasless on Base
+                        $SETTLE Mint / Early Access · Gasless on Base
                       </div>
                     </div>
 
@@ -1384,7 +1641,7 @@ export const __TESTS__ = {
     { n: 3, title: "Get your receipt" },
   ],
   pricingTiers: ["Per Tx (Usage)", "Pro (SaaS)", "Enterprise"],
-  presaleHeader: "USDC-&gt;$SETTLE PRESALE",
+  presaleHeader: "USDC-&gt;$SETTLE Mint / Early Access",
   whatIsSettlePoints: [
     "Live fire, not slideware",
     "Anyone can feel it",

@@ -5,6 +5,8 @@ import coinbase_icon from "./assets/coinbase-icon.svg";
 import okx_icon from "./assets/okx-icon.png";
 import { pickByRDNS } from "../../lib/eip6963";
 
+
+
 type EIP1193Provider = {
   isMetaMask?: boolean;
   isCoinbaseWallet?: boolean;
@@ -183,6 +185,7 @@ export default function ConnectWallet() {
           account: accounts?.[0] ?? "",
           chainId: cidHex ? parseInt(cidHex, 16) : null,
           kind,
+		  provider
         });
       }
 
