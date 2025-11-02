@@ -1,5 +1,5 @@
 // src/components/ConnectWallet.tsx
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState,useEffect } from "react";
 import metamask_icon from "./assets/metamask-icon.svg";
 import coinbase_icon from "./assets/coinbase-icon.svg";
 import okx_icon from "./assets/okx-icon.png";
@@ -101,6 +101,18 @@ export default function ConnectWallet() {
     () => Boolean(getInjectedProvider("coinbase")),
     [open]
   );
+
+  useEffect(() => {
+	// 暴露一个全局函数，任何地方都能直接调起弹窗
+	(window as any).openConnectWallet = () => setOpen(true);
+
+	return () => {
+		// 清理，避免热更新多次挂载
+		if ((window as any).openConnectWallet) {
+		delete (window as any).openConnectWallet;
+		}
+	};
+	}, []);
 
   function detachListeners() {
     const provider = providerRef.current;
