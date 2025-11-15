@@ -4,6 +4,16 @@ import metamask_icon from "./assets/metamask-icon.svg";
 import coinbase_icon from "./assets/coinbase-icon.svg";
 import okx_icon from "./assets/okx-icon.png";
 import { pickByRDNS } from "../../lib/eip6963";
+import { toWalletClient } from "../../lib/toWalletClient";
+
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+function metamaskDeeplinkForThisPage() {
+  // 也可以带上 search/hash：${location.search}${location.hash}
+  	return `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+}
+
 
 
 
@@ -101,7 +111,10 @@ export default function ConnectWallet() {
     () => Boolean(getInjectedProvider("coinbase")),
     [open]
   );
-
+	const okxInjected = useMemo(
+	() => Boolean(getInjectedProvider("okx")),
+	[open]
+);
   useEffect(() => {
 	// 暴露一个全局函数，任何地方都能直接调起弹窗
 	(window as any).openConnectWallet = () => setOpen(true);
@@ -127,16 +140,82 @@ export default function ConnectWallet() {
     onChainChangedRef.current = null;
   }
 
-  function disconnect() {
-    // 仅清本地状态 + 移除监听。浏览器扩展侧并没有标准的“程序化断开”接口。
-    detachListeners();
-    providerRef.current = null;
-    setAddress(null);
-    setChainId(null);
-    setCurrentKind(null);
-    setError(null);
-    emitWalletEvent("wallet:disconnected", {});
-  }
+	const disconnect = React.useCallback(() => {
+		// 仅清本地状态 + 移除监听。浏览器扩展侧并没有标准的“程序化断开”接口。
+		detachListeners();
+		providerRef.current = null;
+		setAddress(null);
+		setChainId(null);
+		setCurrentKind(null);
+		setError(null);
+		emitWalletEvent("wallet:disconnected", {});
+	}, [])
+
+	useEffect(() => {
+		(window as any).disconnectWallet = () => disconnect();
+		return () => {
+			if ((window as any).disconnectWallet) {
+			delete (window as any).disconnectWallet;
+			}
+		};
+	}, [disconnect])
+
+	function finalizeConnect(opts: {
+		provider: EIP1193Provider;
+		account: string;
+		chainIdHex: string;
+		kind: WalletKind;
+	}) {
+		const { provider, account, chainIdHex, kind } = opts;
+		setAddress(account);
+		setChainId(chainIdHex);
+		setCurrentKind(kind);
+		setOpen(false);
+
+		const walletClient = toWalletClient(provider, account, chainIdHex);
+		emitWalletEvent("wallet:connected", {
+			account,
+			chainId: parseInt(chainIdHex, 16),
+			kind,
+			walletType: kind === "metamask" ? "MetaMask" : kind === "coinbase" ? "Coinbase Wallet" : "OKX Wallet",
+			provider,
+			walletClient,
+		});
+	}
+
+
+	useEffect(() => {
+	// 仅移动端有效：如果是 MetaMask DApp 浏览器，尝试 eth_accounts
+	const trySilentConnect = async () => {
+		const p = getInjectedProvider("metamask");
+		if (!p) return;
+		try {
+			const accs: string[] = await p.request({ method: "eth_accounts" });
+			const cidHex: string = await p.request({ method: "eth_chainId" });
+			const account = accs?.[0];
+			if (account && cidHex) {
+				if (cidHex === BASE_CHAIN_ID) {
+				finalizeConnect({ provider: p, account, chainIdHex: cidHex, kind: "metamask" });
+				} else {
+				// 非 Base：尝试切链并完成
+				try {
+					await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: BASE_CHAIN_ID }] });
+					const cid2 = await p.request({ method: "eth_chainId" });
+					if (cid2 === BASE_CHAIN_ID) {
+					finalizeConnect({ provider: p, account, chainIdHex: cid2, kind: "metamask" });
+					}
+				} catch {}
+				}
+			}
+		} catch {}
+	};
+
+	if (isMobile) {
+		// 可以加个查询参数触发（如果你在 deeplink 里加了 ?connect=metamask ）
+		const shouldAuto = /connect=metamask/i.test(window.location.search) || true; // 想全局自动就直接 true
+		if (shouldAuto) trySilentConnect();
+	}
+	}, []);
 
   async function connect(kind: WalletKind) {
     setError(null);
@@ -151,11 +230,17 @@ export default function ConnectWallet() {
       const provider = getInjectedProvider(kind);
       if (!provider) {
         if (kind === "metamask") {
-          window.open("https://metamask.io/download/", "_blank");
+          if (isMobile) {
+			// ✅ 在 iOS/Android 浏览器中，直接深链到 MetaMask 打开当前站
+			window.location.href = metamaskDeeplinkForThisPage();
+		} else {
+			// 桌面：跳扩展安装页
+			window.open("https://metamask.io/download/", "_blank");
+		}
         } else if (kind === "coinbase") {
-          window.open("https://www.coinbase.com/wallet", "_blank");
+          	window.open("https://www.coinbase.com/wallet", "_blank");
         } else {
-          window.open("https://www.okx.com/download", "_blank");
+          	window.open("https://chromewebstore.google.com/detail/okx-wallet/mcohilncbfahbmgdjkbpemcciiolgcge?hl=en", "_blank");
         }
         return;
       }
@@ -185,20 +270,53 @@ export default function ConnectWallet() {
         // });
 
 		//Optional: Prompt the user to switch networks
-      	await provider.request({
-      		method: 'wallet_switchEthereumChain',
-      		params: [{ chainId: '0x2105' }],
-      	});
+      	// await provider.request({
+      	// 	method: 'wallet_switchEthereumChain',
+      	// 	params: [{ chainId: '0x2105' }],
+      	// });
+
+		try {
+			await provider.request({
+			method: "wallet_switchEthereumChain",
+			params: [{ chainId: BASE_CHAIN_ID }],
+			});
+			// ✅ 切链成功后再读一次 chainId + 账号，并完成连接
+			const cid2 = await provider.request({ method: "eth_chainId" });
+			const accs2: string[] = await provider.request({ method: "eth_accounts" });
+			const account2 = accs2?.[0] ?? accounts?.[0] ?? "";
+			if (cid2 === BASE_CHAIN_ID && account2) {
+				finalizeConnect({ provider, account: account2, chainIdHex: cid2, kind });
+			} else {
+				// 兜底提示
+				setError("已尝试切换到 Base，但未获取到账号。请在钱包里完成授权后再试。");
+			}
+		} catch (err: any) {
+			// 用户拒绝（EIP-1193 4001）等
+			if (err?.code === 4001) {
+				setError("已取消网络切换。");
+			} else {
+				setError(err?.message || String(err));
+			}
+		}
 
       } else {
         // 正确网络 → 正常完成连接
-        setOpen(false);
-        emitWalletEvent("wallet:connected", {
-          account: accounts?.[0] ?? "",
-          chainId: cidHex ? parseInt(cidHex, 16) : null,
-          kind,
-		  provider
-        });
+        // setOpen(false);
+		// const walletClient = toWalletClient(provider, accounts[0], cidHex);
+        // emitWalletEvent("wallet:connected", {
+        //   account: accounts?.[0] ?? "",
+        //   chainId: cidHex ? parseInt(cidHex, 16) : null,
+        //   kind,
+		//   walletType:
+		// 	kind === "metamask"
+		// 	? "MetaMask"
+		// 	: kind === "coinbase"
+		// 	? "Coinbase Wallet"
+		// 	: "OKX Wallet",
+		//   provider,
+		//   walletClient, 
+        // });
+			finalizeConnect({ provider, account: accounts?.[0] ?? "", chainIdHex: cidHex, kind });
       }
 
       // 监听账号/网络变化
@@ -216,21 +334,29 @@ export default function ConnectWallet() {
         }
       };
 
-      const onChainChanged = (newChainId: string) => {
+      const onChainChanged = async (newChainId: string) => {
         setChainId(newChainId ?? null);
-        const n = newChainId ? parseInt(newChainId, 16) : null;
-        emitWalletEvent("wallet:chainChanged", { chainId: n });
+		const n = newChainId ? parseInt(newChainId, 16) : null;
+		emitWalletEvent("wallet:chainChanged", { chainId: n });
 
-        // 如果用户从弹窗提示后切到了 Base，则清除错误并自动关闭弹窗
-        // if (newChainId === BASE_CHAIN_ID) {
-        //   setError(null);
-        //   setOpen(false);
-        //   emitWalletEvent("wallet:connected", {
-        //     account: (address || "") as string,
-        //     chainId: 8453,
-        //     kind: currentKind,
-        //   });
-        // }
+		// ✅ 如果切到 Base，尝试静默取号并完成连接
+		if (newChainId === BASE_CHAIN_ID && providerRef.current) {
+			try {
+			const accs: string[] = await providerRef.current.request({ method: "eth_accounts" });
+			const account = accs?.[0] ?? "";
+			if (account) {
+				finalizeConnect({
+				provider: providerRef.current,
+				account,
+				chainIdHex: newChainId,
+				kind: currentKind || "metamask",
+				});
+			}
+			} catch {}
+		}
+
+		
+
       };
 
       onAccountsChangedRef.current = onAccountsChanged;
@@ -244,25 +370,30 @@ export default function ConnectWallet() {
     }
   }
 
+
+
   return (
     <div className="relative inline-block">
       {/* 触发按钮 */}
-      {address ? (
+      {address && (
         <button
           onClick={() => setOpen(true)}
           className="px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition"
           title={address}
         >
-          Connected {shortAddr(address)}{" "}
-        </button>
-      ) : (
-        <button
-          onClick={() => setOpen(true)}
-          className="px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition"
-        >
-          Connect Wallet
-        </button>
-      )}
+          {/* Connected {shortAddr(address)}{" "} */}
+		  Disconnect
+        </button>)
+
+    //   ) : (
+    //     <button
+    //       onClick={() => setOpen(true)}
+    //       className="px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition"
+    //     >
+    //       Connect Wallet
+    //     </button>
+    //   )
+	}
 
       {/* 简易 Modal */}
       {open && (
@@ -302,7 +433,12 @@ export default function ConnectWallet() {
                   <div className="text-left text-green-400">
                     <div className="font-medium">MetaMask</div>
                     <div className="text-xs text-green-500">
-                      {metaMaskInjected ? "已检测到浏览器扩展" : "未检测到，点击将跳转安装"}
+                      {
+					  	metaMaskInjected
+						? "已检测到钱包环境"
+						: (isMobile
+							? "未检测到注入，点击在 MetaMask 内打开"
+							: "未检测到，点击将跳转安装")}
                     </div>
                   </div>
                 </div>
@@ -350,7 +486,7 @@ export default function ConnectWallet() {
                   <div className="text-left text-green-400">
                     <div className="font-medium">OKX Wallet</div>
                     <div className="text-xs text-green-500">
-                      {Boolean((window.ethereum as any)?.isOkxWallet)
+                      {okxInjected
                         ? "已检测到浏览器扩展"
                         : "未检测到，点击将跳转安装"}
                     </div>

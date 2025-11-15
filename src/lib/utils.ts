@@ -60,3 +60,13 @@ export function getInjectedProvider(kind: WalletKind): EIP1193Provider | undefin
 
   return undefined;
 }
+
+
+export function formatBalance(num: string | number, fixed: number): string {
+	const n = typeof num === "string" ? parseFloat(num) : num;
+	if (isNaN(n)) return "-";
+	if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + " G";
+	if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + " M";
+	if (n >= 1_000) return (n / 1_000).toFixed(2) + " K";
+	return n.toFixed(fixed);
+}

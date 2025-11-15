@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Privacy Policy — Settle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Privacy Policy for Settle — data minimization for a non-custodial interface on Base.">
+  <meta name="theme-color" content="#0b0c0d">
+  <style>
+    /* =========
+       CRT Theme (fallbacks included)
+       ========= */
+    :root{
+      /* If the app has already defined these, we’ll use them; otherwise fall back */
+      --crt-bg:      var(--bg, #050605);
+      --crt-panel:   var(--panel, #0b0c0d);
+      --crt-border:  var(--border, #1c1f22);
+      --crt-text:    var(--text, #c7f3d2);
+      --crt-muted:   var(--muted, #7aa789);
+      --crt-accent:  var(--crt-accent, #39f3a3);
+
+      /* Page-local tokens mapped to app tokens */
+      --page-bg: var(--crt-bg);
+      --page-fg: var(--crt-text);
+      --page-muted: var(--crt-muted);
+      --page-card: var(--crt-panel);
+      --page-border: var(--crt-border);
+      --page-link: var(--crt-accent);
+      --page-shadow: 0 0 0.5px rgba(57,243,163,.35), 0 0 18px rgba(57,243,163,.05);
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      padding:0;
+      background: var(--page-bg);
+      color: var(--page-fg);
+      font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Subtle CRT scanlines + vignette */
+    body::before{
+      content:"";
+      position:fixed; inset:-1px;
+      pointer-events:none;
+      background:
+        linear-gradient(to bottom, rgba(255,255,255,.05), transparent 40%, transparent 60%, rgba(0,0,0,.15)) ,
+        repeating-linear-gradient(to bottom, rgba(255,255,255,.03), rgba(255,255,255,.03) 1px, transparent 1px, transparent 2px);
+      mix-blend-mode: overlay;
+      opacity:.4;
+    }
+
+    a{
+      color: var(--page-link);
+      text-decoration: none;
+      border-bottom: 1px dotted currentColor;
+      transition: opacity .15s ease, filter .2s ease, text-shadow .2s ease;
+      text-shadow: 0 0 6px color-mix(in oklab, var(--page-link) 50%, transparent);
+    }
+    a:hover{ opacity:.95; filter: saturate(1.1); }
+    a:focus-visible{
+      outline: 2px solid var(--page-link);
+      outline-offset: 2px;
+      border-bottom-style: solid;
+    }
+
+    header,main,footer{max-width: 880px; margin: 0 auto; padding: 24px}
+    header{ padding-top: 40px }
+
+    h1{ font-size: 28px; line-height: 1.2; margin:.2em 0 .6em; letter-spacing:.2px }
+    h2{ font-size: 20px; margin:1.6em 0 .4em }
+    h3{ font-size: 16px; margin:1.2em 0 .2em }
+
+    .muted{ color: var(--page-muted) }
+
+    /* Section card look */
+    .card{
+      background: linear-gradient(180deg, color-mix(in oklab, var(--page-card) 92%, black), var(--page-card));
+      border: 1px solid var(--page-border);
+      border-radius: 14px;
+      padding: 18px;
+      margin: 16px 0;
+      box-shadow: var(--page-shadow);
+    }
+
+    ul{ margin:.6em 0 .6em 1.2em }
+    li + li{ margin-top:.35em }
+
+    hr{
+      border:0; height:1px;
+      background: linear-gradient(90deg, transparent, var(--page-border), transparent);
+      margin: 26px 0;
+    }
+
+    code, pre, kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    code{
+      background: color-mix(in oklab, var(--page-card) 88%, black);
+      border:1px solid var(--page-border);
+      padding:.15em .35em;
+      border-radius: 8px;
+      color: var(--page-fg);
+    }
+    pre{
+      background: color-mix(in oklab, var(--page-card) 88%, black);
+      border:1px solid var(--page-border);
+      border-radius: 12px;
+      padding: 14px;
+      overflow:auto;
+    }
+
+    /* Top meta row */
+    .meta{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      color: var(--page-muted);
+      font-size: 13px;
+    }
+    .dot{
+      width:6px; height:6px; border-radius:999px;
+      background: var(--page-link); box-shadow: 0 0 9px var(--page-link);
+      display:inline-block;
+    }
+
+    /* Footer */
+    footer{
+      border-top: 1px solid var(--page-border);
+      color: var(--page-muted);
+      font-size: 14px;
+      padding-bottom: 40px;
+    }
+
+    /* Small glow for page title */
+    .glow{
+      text-shadow:
+        0 0 6px rgba(57,243,163,.45),
+        0 0 16px rgba(57,243,163,.15);
+    }
+
+    /* Narrow viewports tweaks */
+    @media (max-width: 480px){
+      header, main, footer{ padding: 20px }
+      h1{ font-size:24px }
+      h2{ font-size:18px }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="meta">
+      <span class="dot" aria-hidden="true"></span>
+      <span>Last updated: <time datetime="2025-11-04">4 Nov 2025</time></span>
+    </div>
+    <h1 class="glow">Privacy Policy — Settle</h1>
+    <p class="muted">We practice data minimization. Settle is a non-custodial interface; most activity occurs on public blockchains.</p>
+  </header>
+
+  <main>
+    <section id="overview" class="card">
+      <h2>1) Overview</h2>
+      <p>This Policy explains what we collect, why, and your choices.</p>
+    </section>
+
+    <section id="data-we-collect" class="card">
+      <h2>2) Data We Collect</h2>
+      <ul>
+        <li><strong>On-chain data:</strong> public wallet addresses, transaction hashes, contract interactions (public by design).</li>
+        <li><strong>Technical data:</strong> IP address, device/browser info, timestamps, and basic event/error logs needed to operate the Service, secure sponsorship, and prevent abuse.</li>
+        <li><strong>Optional analytics/telemetry (if enabled):</strong> aggregated usage metrics (e.g., page views, error rates). We do not use this to build personal profiles.</li>
+        <li><strong>Support communications:</strong> information you provide when you contact us.</li>
+        <li><strong>Sale/Mint data:</strong> on-chain contribution data and minimal technical logs necessary to compute pending entitlements, enforce caps, and execute distribution.</li>
+      </ul>
+      <p><strong>We do not collect seed phrases or private keys</strong>, and we do not take custody of funds.</p>
+    </section>
+
+    <section id="how-we-use" class="card">
+      <h2>3) How We Use Data</h2>
+      <ul>
+        <li>Operate and improve the Service (routing, sponsorship eligibility, performance, debugging).</li>
+        <li>Prevent abuse and fraud (rate-limiting, security monitoring).</li>
+        <li>Operate sales/Mints (calculate entitlements, enforce caps, distribute or refund as supported by contract).</li>
+        <li>Comply with legal obligations.</li>
+        <li>Respond to your inquiries.</li>
+      </ul>
+    </section>
+
+    <section id="legal-bases" class="card">
+      <h2>4) Legal Bases (if applicable)</h2>
+      <p>Legitimate interests (run a secure, reliable interface), contract (provide requested features), consent (for non-essential cookies/analytics), and legal obligations.</p>
+    </section>
+
+    <section id="sharing" class="card">
+      <h2>5) Sharing</h2>
+      <p>We may share limited data with service providers (hosting/CDN, analytics, error logging) under confidentiality and data-processing terms; with authorities when required by law; or in connection with a business transfer. We do <strong>not</strong> sell personal data.</p>
+    </section>
+
+    <section id="transfers" class="card">
+      <h2>6) International Transfers</h2>
+      <p>Your data may be processed outside your country. Where required, we use appropriate safeguards (e.g., standard contractual clauses).</p>
+    </section>
+
+    <section id="retention" class="card">
+      <h2>7) Retention</h2>
+      <p>We retain data only as long as necessary for the purposes above—typically short operational windows for logs unless longer retention is needed for security, aggregated analytics, or legal reasons.</p>
+    </section>
+
+    <section id="choices" class="card">
+      <h2>8) Your Choices &amp; Rights</h2>
+      <ul>
+        <li>Block non-essential cookies/analytics via your browser or our cookie banner (if enabled).</li>
+        <li>Contact us to access, correct, or delete personal data where applicable law provides such rights.</li>
+        <li>Disconnect your wallet at any time; on-chain records are public and immutable.</li>
+      </ul>
+    </section>
+
+    <section id="children" class="card">
+      <h2>9) Children</h2>
+      <p>The Service is not directed to children under 13 (or older minimum age where applicable). Do not use the Service if you are under the applicable age.</p>
+    </section>
+
+    <section id="security" class="card">
+      <h2>10) Security</h2>
+      <p>We use industry-standard technical and organizational measures appropriate to the nature of the data and our Service. No method is 100% secure.</p>
+    </section>
+
+    <section id="third-party-links" class="card">
+      <h2>11) Third-Party Links</h2>
+      <p>Wallets, explorers, and external sites have their own policies. Review them before use.</p>
+    </section>
+
+    <section id="changes" class="card">
+      <h2>12) Changes</h2>
+      <p>We may update this Policy by posting a revised version with a new “Last updated” date.</p>
+    </section>
+
+    <section id="contact" class="card">
+      <h2>13) Contact</h2>
+      <p>Privacy inquiries or rights requests: <a href="mailto:info@settleonbase.xyz">info@settleonbase.xyz</a></p>
+    </section>
+
+    <hr>
+
+    <section id="contracts" class="card">
+      <h2>Appendix — Contracts on Base (public information)</h2>
+      <ul>
+        <li><strong>Primary contract:</strong> <code>0x20c84933F3fFAcFF1C0b4D713b059377a9EF5fD1</code></li>
+        <li><strong>Symbol:</strong> <code>$SETTLE</code></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    © 2025 Settle · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+  </footer>
+</body>
+</html>
