@@ -1,5 +1,23 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 32 32">
-  <!-- Generator: Adobe Illustrator 30.0.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 123)  -->
-  <path d="M24.79,5.05l-3.42,5.99-.06.42c.15.05.31-.14.35-.14h7.04l-9,15.62-3.76-6.41-3.84,6.34L3.31,11.47h7.18l.14-.28-3.56-6.14h17.71ZM10.84,11.33l5.09,9.06,5.16-8.79-.14-.28h-10.11Z"/>
+<svg width="64" height="64" viewBox="0 0 64 64"
+     xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="beamio-static-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+  </defs>
+
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#beamio-static-bg)" />
+
+  <text
+    x="32" y="40"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif"
+    font-size="28"
+    font-weight="700"
+    font-style="italic"
+    fill="#FFFFFF"
+  >
+    B
+  </text>
 </svg>
